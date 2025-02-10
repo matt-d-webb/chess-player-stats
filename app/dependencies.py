@@ -1,4 +1,3 @@
-# app/dependencies.py
 from app.database import SessionLocal
 import time
 

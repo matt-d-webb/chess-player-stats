@@ -1,4 +1,3 @@
-# app/database_indexes.py
 from sqlalchemy import text
 from app.database import engine
 
