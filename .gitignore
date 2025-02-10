@@ -64,3 +64,6 @@ htmlcov/
 *.tmp
 .temp/
 tmp/
+
+# Local Import File
+fide_players.xml
