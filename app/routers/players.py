@@ -1,127 +1,80 @@
+# app/routers/players.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional, List
-from app.database import PlayerDB
-from app.dependencies import get_db, cache
+from typing import Optional
+from app import crud
+from app.dependencies import get_db
+from pydantic import BaseModel
+from typing import List, Optional
 
 router = APIRouter()
 
-@router.get("/federation/{federation}/stats")
-def get_federation_stats(federation: str, db: Session = Depends(get_db)):
-    cache_key = f"fed_stats_{federation}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
+class Player(BaseModel):
+    name: str
+    rating: Optional[int]
+    title: Optional[str]
 
-    stats = db.query(
-        func.count().label('total_players'),
-        func.avg(func.nullif(PlayerDB.standard_rating, 0)).label('avg_rating'),
-        func.count(PlayerDB.title).label('titled_players')
-    ).filter(
-        PlayerDB.federation == federation,
-        PlayerDB.standard_rating.isnot(None)
-    ).first()
+class PlayerListResponse(BaseModel):
+    country: str
+    players: List[Player]
 
-    result = {
-        'federation': federation,
-        'total_players': int(stats[0]),
-        'avg_rating': round(float(stats[1] or 0), 2),
-        'titled_players': int(stats[2])
-    }
-    
-    cache.set(cache_key, result)
-    return result
+class CountryStats(BaseModel):
+    country: str
+    total_players: int
+    avg_rating: float
+    titled_players: int
 
-@router.get("/rating-distribution")
-def get_rating_distribution(
-    federation: Optional[str] = None,
+class RatingDistribution(BaseModel):
+    rating_range: str
+    count: int
+
+class DistributionResponse(BaseModel):
+    distribution: List[RatingDistribution]
+    country: str
+
+@router.get("/player/{fide_id}")
+def get_player(fide_id: int, db: Session = Depends(get_db)):
+    player = crud.get_player(db, fide_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return player
+
+@router.get("/search/")
+def search_players(
+    name: Optional[str] = None,
+    country: Optional[str] = None,
+    min_rating: Optional[int] = Query(None, ge=0, le=3000),
+    title: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
-    cache_key = f"rating_dist_{federation or 'all'}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
+    players = crud.search_players(
+        db, name=name, country=country,
+        min_rating=min_rating, title=title,
+        skip=skip, limit=limit
+    )
+    return {"players": players, "count": len(players)}
 
-    query = db.query(
-        func.floor(PlayerDB.standard_rating/100)*100,
-        func.count()
-    ).filter(PlayerDB.standard_rating > 0)
-
-    if federation:
-        query = query.filter(PlayerDB.federation == federation)
-
-    distribution = query.group_by(
-        func.floor(PlayerDB.standard_rating/100)*100
-    ).order_by(
-        func.floor(PlayerDB.standard_rating/100)*100
-    ).all()
-
-    result = {
-        'distribution': [{'rating_range': f"{int(r[0])}-{int(r[0])+99}", 'count': r[1]} 
-                        for r in distribution],
-        'federation': federation or 'all'
-    }
-    
-    cache.set(cache_key, result)
-    return result
-
-@router.get("/federation/{federation}/top")
-def get_top_players_by_federation(
-    federation: str,
+@router.get("/country/{country}/top", response_model=PlayerListResponse)
+def get_top_players_by_country(
+    country: str,
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    cache_key = f"top_players_{federation}_{limit}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
+    return crud.get_top_players_by_country(db, country.upper(), limit)
 
-    players = db.query(PlayerDB).filter(
-        PlayerDB.federation == federation,
-        PlayerDB.standard_rating > 0
-    ).order_by(
-        desc(PlayerDB.standard_rating)
-    ).limit(limit).all()
+@router.get("/country/{country}/stats", response_model=CountryStats)
+def get_country_stats(country: str, db: Session = Depends(get_db)):
+    return crud.get_country_stats(db, country.upper())
 
-    result = {
-        'federation': federation,
-        'players': [
-            {
-                'name': p.name,
-                'rating': p.standard_rating,
-                'title': p.title
-            } for p in players
-        ]
-    }
-    
-    cache.set(cache_key, result)
-    return result
+@router.get("/rating-distribution", response_model=DistributionResponse)
+def get_rating_distribution(
+    country: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    return crud.get_rating_distribution(db, country.upper() if country else None)
 
 @router.get("/titled-players/stats")
 def get_titled_players_stats(db: Session = Depends(get_db)):
-    cache_key = "titled_players_stats"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
-
-    stats = db.query(
-        PlayerDB.federation,
-        PlayerDB.title,
-        func.count()
-    ).filter(
-        PlayerDB.title.isnot(None),
-        PlayerDB.title != ''
-    ).group_by(
-        PlayerDB.federation,
-        PlayerDB.title
-    ).all()
-
-    result = {}
-    for federation, title, count in stats:
-        if federation not in result:
-            result[federation] = {}
-        result[federation][title] = count
-
-    cache.set(cache_key, result)
-    return result
+    return crud.get_titled_players_stats(db)
