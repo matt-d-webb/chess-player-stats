@@ -40,7 +40,6 @@ env/
 *.sqlite
 *.db
 *.csv
-*.txt
 *.xlsx
 *.xls
 
