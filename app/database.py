@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, Index, text
+# app/database.py
+from sqlalchemy import create_engine, Column, Integer, String, Index, text, BigInteger, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import xml.etree.ElementTree as ET
@@ -14,8 +15,8 @@ Base = declarative_base()
 class PlayerDB(Base):
     __tablename__ = "players"
 
-    id = Column(Integer, primary_key=True)
-    fide_id = Column(Integer, unique=True, index=True)
+    id = Column(BigInteger, primary_key=True)  # Added primary_key=True here
+    fide_id = Column(BigInteger, unique=True, index=True)
     name = Column(String)
     country = Column(String, index=True)
     sex = Column(String)
@@ -23,16 +24,16 @@ class PlayerDB(Base):
     w_title = Column(String)
     o_title = Column(String)
     foa_title = Column(String)
-    rating = Column(Integer)
-    games = Column(Integer)
-    k = Column(Integer)
-    rapid_rating = Column(Integer)
-    rapid_games = Column(Integer)
-    rapid_k = Column(Integer)
-    blitz_rating = Column(Integer)
-    blitz_games = Column(Integer)
-    blitz_k = Column(Integer)
-    birthday = Column(Integer)
+    rating = Column(Float)
+    games = Column(Float)
+    k = Column(Float)
+    rapid_rating = Column(Float)
+    rapid_games = Column(Float)
+    rapid_k = Column(Float)
+    blitz_rating = Column(Float)
+    blitz_games = Column(Float)
+    blitz_k = Column(Float)
+    birthday = Column(Float)
     flag = Column(String)
 
     __table_args__ = (

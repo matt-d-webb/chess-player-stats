@@ -1,35 +1,38 @@
+# app/crud.py
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import List, Optional
 from app.database import PlayerDB
 from app.dependencies import cache
+from app.models import Player, SearchParams
 
-def get_player(db: Session, fide_id: int):
-    return db.query(PlayerDB).filter(PlayerDB.fide_id == fide_id).first()
+def get_player(db: Session, fide_id: int) -> Optional[Player]:
+    db_player = db.query(PlayerDB).filter(PlayerDB.fide_id == fide_id).first()
+    if db_player:
+        return Player.model_validate(db_player)
+    return None
 
 def search_players(
     db: Session,
-    name: Optional[str] = None,
-    country: Optional[str] = None,
-    min_rating: Optional[int] = None,
-    title: Optional[str] = None,
+    params: SearchParams,
     skip: int = 0,
     limit: int = 100
-):
+) -> List[Player]:
     query = db.query(PlayerDB)
     
-    if name:
-        query = query.filter(PlayerDB.name.ilike(f"%{name}%"))
-    if country:
-        query = query.filter(PlayerDB.country == country.upper())
-    if min_rating:
-        query = query.filter(PlayerDB.rating >= min_rating)
-    if title:
-        query = query.filter(PlayerDB.title == title.upper())
+    if params.name:
+        query = query.filter(PlayerDB.name.ilike(f"%{params.name}%"))
+    if params.country:
+        query = query.filter(PlayerDB.country == params.country.upper())
+    if params.min_rating:
+        query = query.filter(PlayerDB.rating >= params.min_rating)
+    if params.title:
+        query = query.filter(PlayerDB.title == params.title.upper())
     
-    return query.offset(skip).limit(limit).all()
+    db_players = query.offset(skip).limit(limit).all()
+    return [Player.model_validate(p) for p in db_players]
 
-def get_top_players_by_country(db: Session, country: str, limit: int = 10):
+def get_top_players_by_country(db: Session, country: str, limit: int = 10) -> List[Player]:
     cache_key = f"top_players_{country}_{limit}"
     cached = cache.get(cache_key)
     if cached:
@@ -42,17 +45,7 @@ def get_top_players_by_country(db: Session, country: str, limit: int = 10):
         desc(PlayerDB.rating)
     ).limit(limit).all()
 
-    result = {
-        'country': country,
-        'players': [
-            {
-                'name': p.name,
-                'rating': p.rating,
-                'title': p.title
-            } for p in players
-        ]
-    }
-    
+    result = [Player.model_validate(p) for p in players]
     cache.set(cache_key, result)
     return result
 
