@@ -45,4 +45,7 @@ app.include_router(players.router, prefix=settings.API_V1_STR)
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "timestamp": datetime.datetime.now().isoformat()
+    }

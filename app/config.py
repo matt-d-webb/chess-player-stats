@@ -1,7 +1,8 @@
-from pydantic_settings import BaseSettings
-from typing import Optional
+# app/config.py
+from pydantic import BaseModel
+from typing import Optional, List
 
-class Settings(BaseSettings):
+class Settings(BaseModel):
     # Database settings
     DATABASE_URL: str = "postgresql://matthew@localhost/chess_players"
     
@@ -10,7 +11,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Chess Stats API"
     
     # CORS settings
-    BACKEND_CORS_ORIGINS: list = ["*"]
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
     
     # Production settings
     DEBUG: bool = False
