@@ -1,12 +1,17 @@
-# app/database.py
-from sqlalchemy import create_engine, Column, Integer, String, Index, text, BigInteger, Float
+from sqlalchemy import create_engine, Column, String, Index, text, BigInteger, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import xml.etree.ElementTree as ET
-import pandas as pd
-import numpy as np
+import os
 
-DATABASE_URL = "postgresql://matthew@localhost/chess_players"
+# Get DATABASE_URL from environment variable, fallback to local for development
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://matthew@localhost/chess_players"
+)
+
+# Render adds 'postgres://', but SQLAlchemy needs 'postgresql://'
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
