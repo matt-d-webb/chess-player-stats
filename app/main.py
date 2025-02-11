@@ -4,6 +4,7 @@ from app.routers import players
 from app.config import settings
 import time
 import logging
+import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -13,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title="Chess Stats API",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -43,7 +44,7 @@ async def log_requests(request: Request, call_next):
 # Include routers
 app.include_router(players.router, prefix=settings.API_V1_STR)
 
-@app.get("/health")
+@app.get("/api/v1/health")
 async def health_check():
     return {
         "status": "healthy",
